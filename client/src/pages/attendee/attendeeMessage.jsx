@@ -1,15 +1,21 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Send } from "lucide-react";
+import { Send, CheckCircle } from "lucide-react";
 import "./attendeeMessage.css";
 
 export default function Message() {
   const [activeChat, setActiveChat] = useState(0);
+
   const [messages, setMessages] = useState([
     { from: "them", text: "Welcome to EventSphere 🎉" },
     { from: "me", text: "Thank you! Excited to join." },
   ]);
+
   const [input, setInput] = useState("");
+
+  // ================= POPUP =================
+
+  const [showPopup, setShowPopup] = useState(false);
 
   const chats = [
     { name: "Event Support", last: "Need help?" },
@@ -17,17 +23,49 @@ export default function Message() {
     { name: "Networking Group", last: "Join meetup" },
   ];
 
-  const sendMessage = () => {
-    if (!input.trim()) return;
+  // ================= SEND MESSAGE =================
 
-    setMessages([...messages, { from: "me", text: input }]);
-    setInput("");
-  };
+ const sendMessage = () => {
+  if (!input.trim()) return;
+
+  setMessages((prev) => [
+    ...prev,
+    {
+      from: "me",
+      text: input,
+    },
+  ]);
+
+  setInput("");
+
+  // RESET FIRST
+  setShowPopup(false);
+
+  // FORCE RE-RENDER
+  setTimeout(() => {
+    setShowPopup(true);
+
+    setTimeout(() => {
+      setShowPopup(false);
+    }, 2000);
+
+  }, 100);
+};
 
   return (
     <div className="message-page">
 
-      {/* LEFT CHAT LIST */}
+      {/* ================= POPUP ================= */}
+
+    {showPopup ? (
+  <div className="message-popup">
+    <CheckCircle size={18} />
+    <span>Message Sent Successfully</span>
+  </div>
+) : null}
+
+      {/* ================= LEFT CHAT LIST ================= */}
+
       <div className="chat-list">
 
         <h2>Messages 💬</h2>
@@ -45,15 +83,18 @@ export default function Message() {
 
       </div>
 
-      {/* CHAT BOX */}
+      {/* ================= CHAT BOX ================= */}
+
       <div className="chat-box">
 
         {/* HEADER */}
+
         <div className="chat-header">
           <h3>{chats[activeChat].name}</h3>
         </div>
 
         {/* MESSAGES */}
+
         <div className="messages">
 
           {messages.map((m, i) => (
@@ -70,17 +111,25 @@ export default function Message() {
         </div>
 
         {/* INPUT */}
+
         <div className="input-box">
+
           <input
             type="text"
             placeholder="Type a message..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                sendMessage();
+              }
+            }}
           />
 
           <button onClick={sendMessage}>
             <Send size={18} />
           </button>
+
         </div>
 
       </div>

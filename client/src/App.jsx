@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { Toaster } from "react-hot-toast";
 
 import { AnimatePresence } from "framer-motion";
 
@@ -54,6 +55,7 @@ function AnimatedRoutes() {
   const location = useLocation();
 
   return (
+    
     <>
       {/* ALWAYS SHOW NAVBAR (no condition) */}
       <Navbar />
@@ -155,6 +157,8 @@ function AnimatedRoutes() {
 export default function App() {
   return (
     <BrowserRouter>
+    <Toaster position="top-right" />
+
       <AnimatedRoutes />
     </BrowserRouter>
   );

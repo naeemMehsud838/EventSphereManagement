@@ -1,71 +1,55 @@
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 import "./AdminProfile.css";
 
 const AdminProfile = () => {
-  const admin = {
-    name: "Umaima Ijaz",
-    role: "Event Admin",
-    email: "umaimaijaz@gmail.com",
-    phone: "+92 300 1234567",
-    company: "Eventify Pvt Ltd",
-    location: "Karachi, Pakistan",
-  };
+  const navigate = useNavigate();
+  const { user } = useAuth();
 
-  // ✅ GET INITIALS
-  const initials = admin.name
-    .split(" ")
-    .map((word) => word[0])
-    .join("");
+  const name    = user?.name    || "Admin";
+  const email   = user?.email   || "admin@eventsphere.com";
+  const phone   = user?.phone   || "Not provided";
+  const company = user?.company || "EventSphere";
+
+  const initials = name.split(" ").map((w) => w[0]).join("").toUpperCase();
 
   return (
     <div className="adminProfileWrapper">
       <div className="adminProfileCard">
-        {/* TOP SECTION */}
+
         <div className="adminProfileTop">
-          {/* AVATAR */}
           <div className="adminProfileAvatar">{initials}</div>
-
-          {/* NAME */}
-          <h1 className="adminProfileName">{admin.name}</h1>
-
-          {/* ROLE */}
-          <p className="adminProfileRole">{admin.role}</p>
+          <h1 className="adminProfileName">{name}</h1>
+          <p className="adminProfileRole">Event Admin</p>
         </div>
 
-        {/* INFO AREA */}
         <div className="adminProfileInfoArea">
-          {/* NAME INFO */}
           <div className="adminInfoBox">
             <label className="adminInfoLabel">Name</label>
-            <p className="adminInfoValue">{admin.name}</p>
+            <p className="adminInfoValue">{name}</p>
           </div>
-
-          {/* EMAIL INFO */}
           <div className="adminInfoBox">
             <label className="adminInfoLabel">Email</label>
-            <p className="adminInfoValue">{admin.email}</p>
+            <p className="adminInfoValue">{email}</p>
           </div>
-
-          {/* PHONE INFO */}
           <div className="adminInfoBox">
             <label className="adminInfoLabel">Phone</label>
-            <p className="adminInfoValue">{admin.phone}</p>
+            <p className="adminInfoValue">{phone}</p>
           </div>
-
-          {/* COMPANY INFO */}
           <div className="adminInfoBox">
             <label className="adminInfoLabel">Company</label>
-            <p className="adminInfoValue">{admin.company}</p>
+            <p className="adminInfoValue">{company}</p>
           </div>
-
-          {/* LOCATION INFO */}
           <div className="adminInfoBox">
             <label className="adminInfoLabel">Location</label>
-            <p className="adminInfoValue">{admin.location}</p>
+            <p className="adminInfoValue">Karachi, Pakistan</p>
           </div>
         </div>
 
-        {/* EDIT BUTTON */}
-        <button className="adminEditButton">✏️ Edit Profile</button>
+        <button className="adminEditButton" onClick={() => navigate("/profilepage?role=admin")}>
+          ✏️ Edit Profile
+        </button>
+
       </div>
     </div>
   );

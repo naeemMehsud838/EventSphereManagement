@@ -1,22 +1,12 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import EventCard from "../../components/events/EventCard";
-import CreateEventModal from "../../components/events/CreateEventModal"; // Add this import
+import CreateEventModal from "../../components/events/CreateEventModal";
+import { eventAPI } from "../../api";
 import "./EventsPage.css";
+import { useAuth } from "../../context/AuthContext";
 
-/* ─── DATA ──────────────────────────────────────────────────── */
-const CATEGORIES = [
-  "All",
-  "Technology",
-  "Fashion",
-  "Food",
-  "Art",
-  "Business",
-  "Science",
-  "Other",
-];
-
+/* ─── STATIC FALLBACK DATA (shown when DB is empty) ─────────── */
 const STATIC_EVENTS = [
-  // ═══ EXISTING 10 RECORDS ═══════════════════════════════════════════
   {
     _id: "1",
     title: "AI & Robotics Summit 2026",
@@ -187,9 +177,6 @@ const STATIC_EVENTS = [
     ticketPrice: 149,
     tags: ["Gaming", "Esports", "Technology", "Entertainment"],
   },
-
-  // ═══ NEW 10 RECORDS ═══════════════════════════════════════════════
-
   {
     _id: "11",
     title: "Luxury Fashion Summit",
@@ -207,7 +194,6 @@ const STATIC_EVENTS = [
     ticketPrice: 750,
     tags: ["Luxury", "Couture", "HighFashion", "Designer"],
   },
-
   {
     _id: "12",
     title: "International Street Food Festival",
@@ -225,7 +211,6 @@ const STATIC_EVENTS = [
     ticketPrice: 89,
     tags: ["StreetFood", "Culinary", "Festival", "Global"],
   },
-
   {
     _id: "13",
     title: "Modern Art & Design Fair",
@@ -243,7 +228,6 @@ const STATIC_EVENTS = [
     ticketPrice: 220,
     tags: ["ModernArt", "Design", "Architecture", "Installation"],
   },
-
   {
     _id: "14",
     title: "Quantum Computing Conference",
@@ -261,7 +245,6 @@ const STATIC_EVENTS = [
     ticketPrice: 650,
     tags: ["Quantum", "Computing", "Science", "Research"],
   },
-
   {
     _id: "15",
     title: "Sustainable Fashion Event",
@@ -279,7 +262,6 @@ const STATIC_EVENTS = [
     ticketPrice: 175,
     tags: ["Sustainable", "EcoFashion", "Ethical", "Circular"],
   },
-
   {
     _id: "16",
     title: "HealthTech & Biotech Summit",
@@ -297,7 +279,6 @@ const STATIC_EVENTS = [
     ticketPrice: 525,
     tags: ["HealthTech", "Biotech", "MedicalAI", "Healthcare"],
   },
-
   {
     _id: "17",
     title: "Creative Directors Forum",
@@ -315,9 +296,8 @@ const STATIC_EVENTS = [
     ticketPrice: 799,
     tags: ["Creative", "Branding", "Design", "Leadership"],
   },
-
   {
-    _id: "",
+    _id: "18",
     title: "Space Tech & Aerospace Events",
     description:
       "Latest in space exploration, satellite technology, aerospace engineering, and commercial spaceflight.",
@@ -335,17 +315,15 @@ const STATIC_EVENTS = [
   },
 ];
 
+const CATEGORIES = [
+  "All", "Technology", "Fashion", "Food", "Art", "Business", "Science", "Other",
+];
+
 const CAT_ICONS = {
-  Technology: "💻",
-  Fashion: "👗",
-  Food: "🍕",
-  Art: "🎨",
-  Business: "💼",
-  Science: "🔬",
-  Other: "✨",
+  Technology: "💻", Fashion: "👗", Food: "🍕",
+  Art: "🎨", Business: "💼", Science: "🔬", Other: "✨",
 };
 
-/* ─── TICKER DATA ───────────────────────────────────────────── */
 const TICKER = [
   "🔴 LIVE: AI Summit Dubai",
   "🟡 SOON: Paris Fashion Week",
@@ -356,35 +334,55 @@ const TICKER = [
   "🟣 FEATURED: Science Event London",
 ];
 
-/* ─── SCROLL TOP HOOK ───────────────────────────────────────── */
-// function useScrollTop() {
-//   const [show, setShow] = useState(false);
-//   useEffect(() => {
-//     const fn = () => setShow(window.scrollY > 400);
-//     window.addEventListener("scroll", fn, { passive: true });
-//     return () => window.removeEventListener("scroll", fn);
-//   }, []);
-//   return show;
-// }
-
 /* ════════════════════════════════════════════════════════════ */
 export default function EventsPage() {
-  const [category, setCategory] = useState("All");
-  const [status, setStatus] = useState("All");
-  const [search, setSearch] = useState("");
-  const [viewMode, setViewMode] = useState("grid");
+  const [category, setCategory]         = useState("All");
+  const [status, setStatus]             = useState("All");
+  const {user} = useAuth();
+  const [search, setSearch]             = useState("");
+  const [viewMode, setViewMode]         = useState("grid");
   const [createModalOpen, setCreateModalOpen] = useState(false);
-  // const showScrollTop = useScrollTop();
+
+  // ── DATA STATE ──────────────────────────────────────────────
+  const [allEvents, setAllEvents] = useState(STATIC_EVENTS); // starts with static
+  const [usingLive, setUsingLive] = useState(false);         // true once API responds
+
   const headerRef = useRef(null);
 
-  const isActive = category !== "All" || status !== "All" || search !== "";
-  const reset = () => {
-    setCategory("All");
-    setStatus("All");
-    setSearch("");
+  // ── FETCH FROM API on mount ──────────────────────────────────
+  useEffect(() => {
+    eventAPI.getAll()
+      .then((data) => {
+        if (data.events && data.events.length > 0) {
+          setAllEvents([...data.events, ...STATIC_EVENTS]);
+          setUsingLive(true);
+        }
+        // if DB is empty, keep showing static data — site still looks great
+      })
+      .catch(() => {
+        // API unreachable — silently keep static data
+      });
+  }, []);
+
+  // ── REFRESH after creating a new event ──────────────────────
+  const handleModalClose = () => {
+    setCreateModalOpen(false);
+    // re-fetch so the new event appears immediately
+    eventAPI.getAll()
+      .then((data) => {
+        if (data.events && data.events.length > 0) {
+          setAllEvents([...data.events, ...STATIC_EVENTS]);
+          setUsingLive(true);
+        }
+      })
+      .catch(() => {});
   };
 
-  const filtered = STATIC_EVENTS.filter((e) => {
+  // ── CLIENT-SIDE FILTERING ───────────────────────────────────
+  const isActive = category !== "All" || status !== "All" || search !== "";
+  const reset = () => { setCategory("All"); setStatus("All"); setSearch(""); };
+
+  const filtered = allEvents.filter((e) => {
     const mc = category === "All" || e.category === category;
     const ms = status === "All" || e.status === status;
     const mq =
@@ -392,11 +390,6 @@ export default function EventsPage() {
       e.location.toLowerCase().includes(search.toLowerCase());
     return mc && ms && mq;
   });
-
-  // Add this function before the return statement
-  const handleModalClose = () => {
-    setCreateModalOpen(false);
-  };
 
   return (
     <>
@@ -440,17 +433,9 @@ export default function EventsPage() {
 
           {/* ── FILTER PANEL ── */}
           <div className="ep-filter-panel">
-            {/* top: search + select + toggle */}
             <div className="ep-filter-top">
               <div className="ep-search-wrap">
-                <svg
-                  width="16"
-                  height="16"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  viewBox="0 0 24 24"
-                >
+                <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <circle cx="11" cy="11" r="8" />
                   <line x1="21" y1="21" x2="16.65" y2="16.65" />
                 </svg>
@@ -462,11 +447,7 @@ export default function EventsPage() {
                 />
               </div>
 
-              <select
-                className="ep-select"
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-              >
+              <select className="ep-select" value={status} onChange={(e) => setStatus(e.target.value)}>
                 <option value="All">All Status</option>
                 <option value="upcoming">Upcoming</option>
                 <option value="ongoing">Live Now</option>
@@ -474,31 +455,13 @@ export default function EventsPage() {
               </select>
 
               <div className="ep-view-toggle">
-                <button
-                  className={`ep-view-btn ${viewMode === "grid" ? "active" : ""}`}
-                  onClick={() => setViewMode("grid")}
-                  title="Grid"
-                >
-                  <svg
-                    width="15"
-                    height="15"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
-                  >
+                <button className={`ep-view-btn ${viewMode === "grid" ? "active" : ""}`} onClick={() => setViewMode("grid")} title="Grid">
+                  <svg width="15" height="15" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M10 3H3v7h7V3zm11 0h-7v7h7V3zM10 14H3v7h7v-7zm11 0h-7v7h7v-7z" />
                   </svg>
                 </button>
-                <button
-                  className={`ep-view-btn ${viewMode === "list" ? "active" : ""}`}
-                  onClick={() => setViewMode("list")}
-                  title="List"
-                >
-                  <svg
-                    width="15"
-                    height="15"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
-                  >
+                <button className={`ep-view-btn ${viewMode === "list" ? "active" : ""}`} onClick={() => setViewMode("list")} title="List">
+                  <svg width="15" height="15" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z" />
                   </svg>
                 </button>
@@ -507,18 +470,11 @@ export default function EventsPage() {
 
             <div className="ep-filter-divider" />
 
-            {/* bottom: pills + meta */}
             <div className="ep-filter-bottom">
               <div className="ep-pills">
                 {CATEGORIES.map((cat) => (
-                  <button
-                    key={cat}
-                    className={`ep-pill ${category === cat ? "active" : ""}`}
-                    onClick={() => setCategory(cat)}
-                  >
-                    {cat !== "All" && (
-                      <span className="ep-pill-icon">{CAT_ICONS[cat]}</span>
-                    )}
+                  <button key={cat} className={`ep-pill ${category === cat ? "active" : ""}`} onClick={() => setCategory(cat)}>
+                    {cat !== "All" && <span className="ep-pill-icon">{CAT_ICONS[cat]}</span>}
                     {cat}
                   </button>
                 ))}
@@ -527,17 +483,11 @@ export default function EventsPage() {
               <div className="ep-filter-meta">
                 <div className="ep-count-label">
                   <strong>{filtered.length}</strong> events found
+                  {usingLive && <span style={{ fontSize: "11px", marginLeft: "8px", color: "#4ade80" }}>● live</span>}
                 </div>
                 {isActive && (
                   <button className="ep-clear" onClick={reset}>
-                    <svg
-                      width="13"
-                      height="13"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      viewBox="0 0 24 24"
-                    >
+                    <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                       <path d="M18 6L6 18M6 6l12 12" />
                     </svg>
                     Clear
@@ -547,40 +497,24 @@ export default function EventsPage() {
             </div>
           </div>
 
-          <div className="ep-create-wrap">
-            <button
-              className="ep-create-btn"
-              onClick={() => setCreateModalOpen(true)}
-            >
-              <svg
-                width="18"
-                height="18"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                viewBox="0 0 24 24"
-              >
+         {user?.role === "admin" && (
+<div className="ep-create-wrap">
+  <button className="ep-create-btn" onClick={() => setCreateModalOpen(true)}>
+              <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                 <path d="M12 5v14M5 12h14" />
               </svg>
               Create Event
             </button>
           </div>
+          )}
 
           {/* ── RESULTS HEADER ── */}
           <div className="ep-results-head">
             <h2 className="ep-results-heading">
-              {category === "All" ? (
-                <>
-                  All <span>events</span>
-                </>
-              ) : (
-                <>
-                  <span>{category}</span> events
-                </>
-              )}
+              {category === "All" ? (<>All <span>events</span></>) : (<><span>{category}</span> events</>)}
             </h2>
             <div className="ep-results-meta">
-              {filtered.length} of {STATIC_EVENTS.length} total
+              {filtered.length} of {allEvents.length} total
             </div>
           </div>
 
@@ -589,12 +523,8 @@ export default function EventsPage() {
             <div className="ep-empty">
               <span className="ep-empty-glyph">🔍</span>
               <h3 className="ep-empty-title">Nothing found</h3>
-              <p className="ep-empty-sub">
-                Try adjusting your filters or clearing the search.
-              </p>
-              <button className="ep-empty-btn" onClick={reset}>
-                Reset all filters
-              </button>
+              <p className="ep-empty-sub">Try adjusting your filters or clearing the search.</p>
+              <button className="ep-empty-btn" onClick={reset}>Reset all filters</button>
             </div>
           ) : (
             <div className={viewMode === "grid" ? "ep-grid" : "ep-list"}>
@@ -606,8 +536,8 @@ export default function EventsPage() {
         </div>
       </div>
 
-      {/* ── CREATE Event MODAL ── */}
-      <CreateEventModal open={createModalOpen} onClose={handleModalClose} />
+      {/* ── CREATE EVENT MODAL ── */}
+      <CreateEventModal open={createModalOpen} onClose={handleModalClose} onCreated={handleModalClose} />
     </>
   );
 }

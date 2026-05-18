@@ -1,25 +1,28 @@
-
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
+  LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  BarChart, Bar,
 } from "recharts";
+import { boothAPI } from "../../api";
 import "./Dashboard.css";
 
 export default function Dashboard() {
-
   const navigate = useNavigate();
 
+  // Only booth count is fetched — everything else stays static
+  const [boothCount, setBoothCount] = useState(4);
+
+  useEffect(() => {
+    boothAPI.getMyBooths()
+      .then(({ count }) => { if (count !== undefined) setBoothCount(count); })
+      .catch(() => {});
+  }, []);
+
   const eventData = [
-    { name: "Jan", events: 4 },
-    { name: "Feb", events: 7 },
-    { name: "Mar", events: 5 },
+    { name: "Jan", events: 4  },
+    { name: "Feb", events: 7  },
+    { name: "Mar", events: 5  },
     { name: "Apr", events: 10 },
     { name: "May", events: 12 },
   ];
@@ -35,12 +38,9 @@ export default function Dashboard() {
   return (
     <div className="exhibitor-wrapper">
 
-      {/* ================= SIDEBAR ================= */}
-      
       {/* ================= MAIN AREA ================= */}
       <div className="main-area">
 
-      
         {/* CONTENT */}
         <div className="content">
 
@@ -68,7 +68,7 @@ export default function Dashboard() {
               onClick={() => navigate("/exhibitor/My-Booth")}
             >
               <h2>🏗️ Booths</h2>
-              <h3>4</h3>
+              <h3>{boothCount}</h3>
             </div>
 
             <div
@@ -86,29 +86,19 @@ export default function Dashboard() {
           <div className="charts-grid">
 
             <div className="card chart-card">
-
               <h2>📈 Events Growth</h2>
-
               <ResponsiveContainer width="100%" height={250}>
                 <LineChart data={eventData}>
                   <XAxis dataKey="name" stroke="var(--accent)" />
                   <YAxis stroke="var(--accent)" />
                   <Tooltip />
-                  <Line
-                    type="monotone"
-                    dataKey="events"
-                    stroke="var(--primary)"
-                    strokeWidth={3}
-                  />
+                  <Line type="monotone" dataKey="events" stroke="var(--primary)" strokeWidth={3} />
                 </LineChart>
               </ResponsiveContainer>
-
             </div>
 
             <div className="card chart-card">
-
               <h2>👥 Weekly Attendee</h2>
-
               <ResponsiveContainer width="100%" height={250}>
                 <BarChart data={visitorData}>
                   <XAxis dataKey="name" stroke="var(--accent)" />
@@ -117,7 +107,6 @@ export default function Dashboard() {
                   <Bar dataKey="visitors" fill="var(--deep)" />
                 </BarChart>
               </ResponsiveContainer>
-
             </div>
 
           </div>

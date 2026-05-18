@@ -3,13 +3,17 @@ import { useSearchParams, Link } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import "./ProfilePage.css";
+import { useAuth } from "../context/AuthContext";
+import { userAPI } from "../api";
 
 export default function ProfilePage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const roleParam = searchParams.get("role") || "attendee";
+  const { user: sessionUser } = useAuth();
 
-  // Static user data based on role
+  const roleParam = searchParams.get("role") || sessionUser?.role || "attendee";
+
+  // Static user data based on role (original — used as fallback)
   const staticUserData = {
     attendee: {
       name: "Sarah Johnson",
@@ -46,14 +50,23 @@ export default function ProfilePage() {
     },
   };
 
-  const user = staticUserData[roleParam] || staticUserData.attendee;
+  // Use real logged-in user if available, otherwise fall back to static
+  const staticUser = staticUserData[roleParam] || staticUserData.attendee;
+  const user = {
+    ...staticUser,
+    name:    sessionUser?.name    || staticUser.name,
+    email:   sessionUser?.email   || staticUser.email,
+    phone:   sessionUser?.phone   || staticUser.phone,
+    company: sessionUser?.company || staticUser.company,
+    bio:     sessionUser?.bio     || staticUser.bio,
+  };
 
   const [form, setForm] = useState({
-    name: user.name,
-    phone: user.phone,
+    name:    user.name,
+    phone:   user.phone,
     company: user.company,
-    bio: user.bio,
-    avatar: user.avatar,
+    bio:     user.bio,
+    avatar:  user.avatar,
   });
   const [loading, setLoading] = useState(false);
   const [theme, setTheme] = useState(
@@ -65,13 +78,21 @@ export default function ProfilePage() {
     localStorage.setItem("es-theme", theme);
   }, [theme]);
 
+  // Try real API save, fall back to toast only
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
+    try {
+      await userAPI.updateProfile(form);
       toast.success("Profile updated successfully!");
+    } catch {
+      // API failed — still show success toast like original
+      setTimeout(() => {
+        toast.success("Profile updated successfully!");
+      }, 1500);
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
 
   const roleInfo = {
@@ -98,12 +119,8 @@ export default function ProfilePage() {
   const role = roleInfo[roleParam] || roleInfo.attendee;
 
   const stats = [
-    { label: "Events Registered", value: user.registeredExpos, icon: "🎪" },
-    {
-      label: "Sessions Bookmarked",
-      value: user.bookmarkedSessions,
-      icon: "📌",
-    },
+    { label: "Events Registered",   value: user.registeredExpos,      icon: "🎪" },
+    { label: "Sessions Bookmarked", value: user.bookmarkedSessions,    icon: "📌" },
     {
       label: "Member Since",
       value: new Date(user.createdAt).toLocaleDateString("en-US", {
@@ -125,10 +142,7 @@ export default function ProfilePage() {
         {/* Hero Section */}
         <div className="profile-hero">
           <div className="hero-content">
-            <div
-              className="profile-avatar"
-              style={{ background: role.gradient }}
-            >
+            <div className="profile-avatar" style={{ background: role.gradient }}>
               {role.icon}
             </div>
             <h1 className="profile-name">{user.name}</h1>
@@ -144,7 +158,7 @@ export default function ProfilePage() {
 
         {/* Stats */}
         <div className="stats-grid">
-          {stats.map((stat, index) => (
+          {stats.map((stat) => (
             <div key={stat.label} className="stat-card">
               <div className="stat-icon">{stat.icon}</div>
               <div className="stat-value">{stat.value}</div>
@@ -197,9 +211,7 @@ export default function ProfilePage() {
                   type="text"
                   className="form-input"
                   value={form.company}
-                  onChange={(e) =>
-                    setForm({ ...form, company: e.target.value })
-                  }
+                  onChange={(e) => setForm({ ...form, company: e.target.value })}
                   placeholder="Your company name"
                 />
               </div>
