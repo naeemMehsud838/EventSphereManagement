@@ -3,7 +3,7 @@ import "./CreateEventModal.css";
 import { eventAPI } from "../../api";
 import toast from "react-hot-toast";
 
-function UpdateEventModal({ open, onClose, expo }) {
+function UpdateEventModal({ open, onClose, expo, onUpdated }) {
   const [form, setForm] = useState({
     title: "", category: "", location: "", ticketPrice: "",
     startDate: "", endDate: "", description: "",
@@ -17,7 +17,7 @@ function UpdateEventModal({ open, onClose, expo }) {
     return () => (document.body.style.overflow = "auto");
   }, [open]);
 
-  // Pre-fill with existing event data
+  // Pre-fill with existing event data when modal opens
   useEffect(() => {
     if (open && expo) {
       setForm({
@@ -63,8 +63,11 @@ function UpdateEventModal({ open, onClose, expo }) {
       Object.entries(form).forEach(([k, v]) => fd.append(k, v));
       if (imageFile) fd.append("coverImage", imageFile);
 
-      await eventAPI.update(expo._id, fd);
+      const { event: updated } = await eventAPI.update(expo._id, fd);
       toast.success("Event updated successfully! 🎉", { duration: 4000 });
+
+      // Tell EventsDetail to update its state instantly — no refresh needed
+      onUpdated?.(updated);
       onClose();
     } catch (err) {
       toast.error(err.message || "Failed to update event", { duration: 4000 });
@@ -117,19 +120,9 @@ function UpdateEventModal({ open, onClose, expo }) {
               {/* FILE UPLOAD */}
               <div className="cem-field full">
                 <label className="cem-label">Event Image</label>
-                <input
-                  className="cem-input cem-image-input"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  disabled={loading}
-                />
+                <input className="cem-input cem-image-input" type="file" accept="image/*" onChange={handleImageChange} disabled={loading} />
                 {preview && (
-                  <img
-                    src={preview}
-                    alt="preview"
-                    style={{ marginTop: "10px", width: "100%", maxHeight: "160px", objectFit: "cover", borderRadius: "10px" }}
-                  />
+                  <img src={preview} alt="preview" style={{ marginTop: "10px", width: "100%", maxHeight: "160px", objectFit: "cover", borderRadius: "10px" }} />
                 )}
               </div>
 

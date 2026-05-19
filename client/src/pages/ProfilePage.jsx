@@ -9,48 +9,16 @@ import { userAPI } from "../api";
 export default function ProfilePage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { user: sessionUser } = useAuth();
+  const { user: sessionUser, refreshUser } = useAuth();
 
   const roleParam = searchParams.get("role") || sessionUser?.role || "attendee";
 
-  // Static user data based on role (original — used as fallback)
   const staticUserData = {
-    attendee: {
-      name: "Sarah Johnson",
-      email: "sarah.johnson@email.com",
-      phone: "+1 (555) 123-4567",
-      company: "Tech Innovators Inc.",
-      bio: "Passionate event enthusiast and tech professional. Always looking for the next big conference!",
-      avatar: "",
-      registeredExpos: 12,
-      bookmarkedSessions: 28,
-      createdAt: "2023-08-15",
-    },
-    exhibitor: {
-      name: "Mike Chen",
-      email: "mike.chen@exhibitco.com",
-      phone: "+1 (555) 987-6543",
-      company: "ExhibitCo Solutions",
-      bio: "Leading exhibitor with 10+ years experience creating unforgettable booth experiences.",
-      avatar: "",
-      registeredExpos: 8,
-      bookmarkedSessions: 15,
-      createdAt: "2022-03-10",
-    },
-    admin: {
-      name: "Admin Master",
-      email: "admin@eventsphere.com",
-      phone: "+1 (555) 000-0001",
-      company: "EventSphere Admin",
-      bio: "System administrator managing platform operations and event coordination.",
-      avatar: "",
-      registeredExpos: 45,
-      bookmarkedSessions: 120,
-      createdAt: "2021-01-01",
-    },
+    attendee: { name: "Sarah Johnson", email: "sarah.johnson@email.com", phone: "+1 (555) 123-4567", company: "Tech Innovators Inc.", bio: "Passionate event enthusiast and tech professional.", avatar: "", registeredExpos: 12, bookmarkedSessions: 28, createdAt: "2023-08-15" },
+    exhibitor: { name: "Mike Chen",    email: "mike.chen@exhibitco.com", phone: "+1 (555) 987-6543", company: "ExhibitCo Solutions",  bio: "Leading exhibitor with 10+ years experience.",         avatar: "", registeredExpos: 8,  bookmarkedSessions: 15,  createdAt: "2022-03-10" },
+    admin:     { name: "Admin Master", email: "admin@eventsphere.com",   phone: "+1 (555) 000-0001", company: "EventSphere Admin",     bio: "System administrator managing platform operations.",   avatar: "", registeredExpos: 45, bookmarkedSessions: 120, createdAt: "2021-01-01" },
   };
 
-  // Use real logged-in user if available, otherwise fall back to static
   const staticUser = staticUserData[roleParam] || staticUserData.attendee;
   const user = {
     ...staticUser,
@@ -59,91 +27,88 @@ export default function ProfilePage() {
     phone:   sessionUser?.phone   || staticUser.phone,
     company: sessionUser?.company || staticUser.company,
     bio:     sessionUser?.bio     || staticUser.bio,
+    avatar:  sessionUser?.avatar  || staticUser.avatar,
   };
 
   const [form, setForm] = useState({
-    name:    user.name,
-    phone:   user.phone,
-    company: user.company,
-    bio:     user.bio,
-    avatar:  user.avatar,
+    name: user.name, phone: user.phone, company: user.company, bio: user.bio,
   });
+  const [avatarFile,    setAvatarFile]    = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState(user.avatar || "");
   const [loading, setLoading] = useState(false);
-  const [theme, setTheme] = useState(
-    () => localStorage.getItem("es-theme") || "dark",
-  );
+
+  const [theme, setTheme] = useState(() => localStorage.getItem("es-theme") || "dark");
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("es-theme", theme);
   }, [theme]);
 
-  // Try real API save, fall back to toast only
+  const handleAvatarChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setAvatarFile(file);
+    setAvatarPreview(URL.createObjectURL(file));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await userAPI.updateProfile(form);
+      const fd = new FormData();
+      fd.append("name",    form.name);
+      fd.append("phone",   form.phone);
+      fd.append("company", form.company);
+      fd.append("bio",     form.bio);
+      if (avatarFile) fd.append("avatar", avatarFile);
+      await userAPI.updateProfile(fd);
+      await refreshUser();   // update navbar avatar & name instantly
       toast.success("Profile updated successfully!");
     } catch {
-      // API failed — still show success toast like original
-      setTimeout(() => {
-        toast.success("Profile updated successfully!");
-      }, 1500);
+      setTimeout(() => toast.success("Profile updated successfully!"), 1500);
     } finally {
       setLoading(false);
     }
   };
 
   const roleInfo = {
-    admin: {
-      title: "System Administrator",
-      gradient: "linear-gradient(135deg, #cc73db, #f5d5e0)",
-      badge: "ADM",
-      icon: "⚙️",
-    },
-    exhibitor: {
-      title: "Exhibitor Partner",
-      gradient: "linear-gradient(135deg, #6c6d91, #c06cbf)",
-      badge: "EXH",
-      icon: "🏪",
-    },
-    attendee: {
-      title: "Event Attendee",
-      gradient: "linear-gradient(135deg, #4f1d68, #6c6d91)",
-      badge: "ATT",
-      icon: "👤",
-    },
+    admin:     { title: "System Administrator", gradient: "linear-gradient(135deg, #cc73db, #f5d5e0)", badge: "ADM", icon: "⚙️" },
+    exhibitor: { title: "Exhibitor Partner",     gradient: "linear-gradient(135deg, #6c6d91, #c06cbf)", badge: "EXH", icon: "🏪" },
+    attendee:  { title: "Event Attendee",        gradient: "linear-gradient(135deg, #4f1d68, #6c6d91)", badge: "ATT", icon: "👤" },
   };
 
   const role = roleInfo[roleParam] || roleInfo.attendee;
 
+  // Dashboard route based on role
+  const dashboardRoute = { admin: "/admin", exhibitor: "/exhibitor", attendee: "/attendee" };
+
   const stats = [
-    { label: "Events Registered",   value: user.registeredExpos,      icon: "🎪" },
-    { label: "Sessions Bookmarked", value: user.bookmarkedSessions,    icon: "📌" },
-    {
-      label: "Member Since",
-      value: new Date(user.createdAt).toLocaleDateString("en-US", {
-        month: "short",
-        year: "numeric",
-      }),
-      icon: "🗓️",
-    },
+    { label: "Events Registered",   value: user.registeredExpos,   icon: "🎪" },
+    { label: "Sessions Bookmarked", value: user.bookmarkedSessions, icon: "📌" },
+    { label: "Member Since", value: new Date(user.createdAt).toLocaleDateString("en-US", { month: "short", year: "numeric" }), icon: "🗓️" },
   ];
 
   return (
     <>
       <div className="profile-container">
-        {/* Back Button */}
-        <Link to="/" className="back-btn">
-          ← Back to Home
-        </Link>
+        <Link to="/" className="back-btn">← Back to Home</Link>
 
         {/* Hero Section */}
         <div className="profile-hero">
           <div className="hero-content">
-            <div className="profile-avatar" style={{ background: role.gradient }}>
-              {role.icon}
+            {/* Avatar — shows image if available, else role icon */}
+            <div
+              className="profile-avatar"
+              style={{
+                background: avatarPreview ? "transparent" : role.gradient,
+                overflow: "hidden",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}
+            >
+              {avatarPreview
+                ? <img src={avatarPreview} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                : role.icon
+              }
             </div>
             <h1 className="profile-name">{user.name}</h1>
             <p className="profile-email">{user.email}</p>
@@ -175,66 +140,45 @@ export default function ProfilePage() {
             <div className="form-grid">
               <div className="form-group">
                 <label className="form-label">Full Name</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="Enter your full name"
-                />
+                <input type="text" className="form-input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Enter your full name" />
               </div>
 
               <div className="form-group">
                 <label className="form-label">Email Address</label>
-                <input
-                  type="email"
-                  className="form-input"
-                  value={user.email}
-                  disabled
-                />
+                <input type="email" className="form-input" value={user.email} disabled />
               </div>
 
               <div className="form-group">
                 <label className="form-label">Phone Number</label>
-                <input
-                  type="tel"
-                  className="form-input"
-                  value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                  placeholder="+1 (555) 000-0000"
-                />
+                <input type="tel" className="form-input" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+1 (555) 000-0000" />
               </div>
 
               <div className="form-group">
                 <label className="form-label">Company</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  value={form.company}
-                  onChange={(e) => setForm({ ...form, company: e.target.value })}
-                  placeholder="Your company name"
-                />
+                <input type="text" className="form-input" value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} placeholder="Your company name" />
               </div>
 
+              {/* FILE UPLOAD for avatar */}
               <div className="form-group" style={{ gridColumn: "1 / -1" }}>
-                <label className="form-label">Avatar URL</label>
+                <label className="form-label">Profile Picture</label>
                 <input
-                  type="url"
+                  type="file"
                   className="form-input"
-                  value={form.avatar}
-                  onChange={(e) => setForm({ ...form, avatar: e.target.value })}
-                  placeholder="https://example.com/avatar.jpg"
+                  accept="image/*"
+                  onChange={handleAvatarChange}
                 />
+                {avatarPreview && (
+                  <img
+                    src={avatarPreview}
+                    alt="preview"
+                    style={{ marginTop: "10px", width: "80px", height: "80px", borderRadius: "50%", objectFit: "cover", border: "3px solid rgba(167,139,250,0.5)" }}
+                  />
+                )}
               </div>
 
               <div className="form-group" style={{ gridColumn: "1 / -1" }}>
                 <label className="form-label">Bio</label>
-                <textarea
-                  className="form-textarea"
-                  value={form.bio}
-                  onChange={(e) => setForm({ ...form, bio: e.target.value })}
-                  placeholder="Tell us about yourself..."
-                />
+                <textarea className="form-textarea" value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} placeholder="Tell us about yourself..." />
               </div>
             </div>
 
@@ -243,23 +187,21 @@ export default function ProfilePage() {
             </button>
           </form>
 
-          {/* Quick Actions */}
+          {/* Quick Actions — navigates based on role */}
           <div className="quick-actions">
-            <Link to="/dashboard" className="action-btn">
-              <span>🏠</span>
-              Dashboard
+            <button onClick={() => navigate(dashboardRoute[roleParam] || "/attendee")} className="action-btn">
+              <span>🏠</span> Dashboard
+            </button>
+            <Link to="/events" className="action-btn">
+              <span>🎪</span> Browse Events
             </Link>
-            <Link to="/expos" className="action-btn">
-              <span>🎪</span>
-              Browse Events
-            </Link>
-            <Link to="/sessions" className="action-btn">
-              <span>📅</span>
-              My Sessions
-            </Link>
+            {roleParam === "attendee" && (
+              <Link to="/attendee/session" className="action-btn">
+                <span>📅</span> My Sessions
+              </Link>
+            )}
             <button onClick={() => navigate(-1)} className="action-btn">
-              <span>↩️</span>
-              Go Back
+              <span>↩️</span> Go Back
             </button>
           </div>
         </div>

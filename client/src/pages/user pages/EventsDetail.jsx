@@ -5,6 +5,7 @@ import ErrorPage from "../ErrorPage";
 import UpdateEventModal from "../../components/events/UpdateEventModal";
 import { eventAPI } from "../../api";
 import { useAuth } from "../../context/AuthContext";
+import Swal from "sweetalert2";
 
 const STATIC_EVENTS = [
   { _id: "1",  title: "AI & Robotics Summit 2026",         description: "Explore the future of artificial intelligence and robotics with industry leaders and innovators from around the globe.",          location: "Dubai, UAE",            startDate: "2026-08-15", endDate: "2026-08-17", category: "Technology", status: "upcoming",  coverImage: "https://images.pexels.com/photos/3861969/pexels-photo-3861969.jpeg", maxAttendees: 5000,  registeredAttendees: 3240,  ticketPrice: 299, tags: ["AI","Robotics","Innovation","Tech"]                    },
@@ -89,11 +90,27 @@ export default function EventsDetail() {
                 <button
                   className="ed-admin-btn ed-admin-delete"
                   onClick={() => {
-                    if (confirm(`🗑️ Delete "${events.title}"?\n\nThis expo will be permanently deleted.`)) {
-                      eventAPI.delete(id)
-                        .then(() => navigate("/admin/adminEvents"))
-                        .catch((err) => alert("Delete failed: " + err.message));
-                    }
+                    Swal.fire({
+                      title: `Delete "${events.title}"?`,
+                      text: "This event will be permanently deleted.",
+                      icon: "warning",
+                      showCancelButton: true,
+                      confirmButtonText: "Yes, Delete",
+                      cancelButtonText: "Cancel",
+                      confirmButtonColor: "#ef4444",
+                      cancelButtonColor: "#7c3aed",
+                      background: "#1e1e2e",
+                      color: "#fff",
+                    }).then((result) => {
+                      if (result.isConfirmed) {
+                        eventAPI.delete(id)
+                          .then(() => {
+                            Swal.fire({ title: "Deleted!", icon: "success", timer: 1500, showConfirmButton: false, background: "#1e1e2e", color: "#fff" })
+                              .then(() => navigate("/admin/adminEvents"));
+                          })
+                          .catch((err) => Swal.fire({ title: "Failed", text: err.message, icon: "error", background: "#1e1e2e", color: "#fff" }));
+                      }
+                    });
                   }}
                   title="Delete Event"
                 >
@@ -232,7 +249,7 @@ export default function EventsDetail() {
         </div>
       </div>
 
-      <UpdateEventModal expo={events} open={showUpdateModal} onClose={() => setShowUpdateModal(false)} />
+      <UpdateEventModal expo={events} open={showUpdateModal} onClose={() => setShowUpdateModal(false)} onUpdated={(updated) => { setEvents(updated); setShowUpdateModal(false); }} />
     </>
   );
 }

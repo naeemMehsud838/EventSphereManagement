@@ -47,6 +47,7 @@ export const userAPI = {
   changePassword : (body)   => request("PUT",    "/users/profile/password", body),
   updateStatus   : (id, status) => request("PATCH", `/users/${id}/status`, { status }),
   delete         : (id)     => request("DELETE", `/users/${id}`),
+  getAdminContact: ()       => request("GET",    "/users/admin/contact"),
 };
 
 // ─── Events ────────────────────────────────────────────────────

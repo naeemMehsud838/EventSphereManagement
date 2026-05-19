@@ -50,6 +50,7 @@ import AdminPayments from "./pages/admin/AdminPayments";
 import AdminSchedule from "./pages/admin/AdminSchedule";
 import AdminTickets from "./pages/admin/AdminTickets";
 import AdminProfile from "./pages/admin/AdminProfile";
+import Chatbot from "./components/Chatbot";
 
 function AnimatedRoutes() {
   const location = useLocation();
@@ -160,6 +161,7 @@ export default function App() {
     <Toaster position="top-right" />
 
       <AnimatedRoutes />
+      <Chatbot />
     </BrowserRouter>
   );
 }

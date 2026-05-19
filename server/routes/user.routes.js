@@ -18,3 +18,15 @@ router.delete("/:id",    isAuthenticated, authorizeRoles("admin"), deleteUser);
 router.get("/:id",       isAuthenticated, getUserById);
 
 module.exports = router;
+
+// Public — get admin contact (so exhibitors/attendees can message admin)
+router.get("/admin/contact", isAuthenticated, async (req, res) => {
+  try {
+    const User = require("../models/User");
+    const admin = await User.findOne({ role: "admin" }).select("_id name email");
+    if (!admin) return res.status(404).json({ success: false, message: "No admin found" });
+    res.json({ success: true, admin });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});

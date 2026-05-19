@@ -3,53 +3,123 @@ import { useState, useEffect } from "react";
 import { ticketAPI } from "../../api";
 import "./AdminTickets.css";
 
-// Original static tickets — shown as fallback if DB is empty
 const STATIC_TICKETS = [
-  { _id: "t1",  id: "#1021", user: "Ali",     subject: "Payment Issue",      status: "Open",    priority: "High",   category: "Billing",   date: "11 May" },
-  { _id: "t2",  id: "#1022", user: "Ahmed",   subject: "Login Error",        status: "Pending", priority: "Medium", category: "Technical", date: "10 May" },
-  { _id: "t3",  id: "#1023", user: "Sara",    subject: "Refund Request",     status: "Closed",  priority: "Low",    category: "Billing",   date: "09 May" },
-  { _id: "t4",  id: "#1024", user: "Hassan",  subject: "Account Locked",     status: "Open",    priority: "High",   category: "Security",  date: "08 May" },
-  { _id: "t5",  id: "#1025", user: "Areeba",  subject: "Profile Update",     status: "Pending", priority: "Low",    category: "General",   date: "07 May" },
-  { _id: "t6",  id: "#1026", user: "Usman",   subject: "Subscription Error", status: "Closed",  priority: "Medium", category: "Billing",   date: "06 May" },
-  { _id: "t7",  id: "#1027", user: "Fatima",  subject: "Password Reset",     status: "Open",    priority: "Medium", category: "Security",  date: "05 May" },
-  { _id: "t8",  id: "#1028", user: "Bilal",   subject: "Website Crash",      status: "Open",    priority: "High",   category: "Technical", date: "04 May" },
-  { _id: "t9",  id: "#1029", user: "Zoya",    subject: "Email Verification", status: "Pending", priority: "Medium", category: "General",   date: "03 May" },
-  { _id: "t10", id: "#1030", user: "Hamza",   subject: "Refund Delay",       status: "Closed",  priority: "Low",    category: "Billing",   date: "02 May" },
-  { _id: "t11", id: "#1031", user: "Iqra",    subject: "2FA Problem",        status: "Open",    priority: "High",   category: "Security",  date: "01 May" },
-  { _id: "t12", id: "#1032", user: "Daniyal", subject: "Dashboard Bug",      status: "Pending", priority: "Medium", category: "Technical", date: "30 Apr" },
+  { subject: "Payment Issue",      status: "Open",    priority: "High",   category: "Billing",   userName: "Ali"     },
+  { subject: "Login Error",        status: "Pending", priority: "Medium", category: "Technical", userName: "Ahmed"   },
+  { subject: "Refund Request",     status: "Closed",  priority: "Low",    category: "Billing",   userName: "Sara"    },
+  { subject: "Account Locked",     status: "Open",    priority: "High",   category: "Security",  userName: "Hassan"  },
+  { subject: "Profile Update",     status: "Pending", priority: "Low",    category: "General",   userName: "Areeba"  },
+  { subject: "Subscription Error", status: "Closed",  priority: "Medium", category: "Billing",   userName: "Usman"   },
+  { subject: "Password Reset",     status: "Open",    priority: "Medium", category: "Security",  userName: "Fatima"  },
+  { subject: "Website Crash",      status: "Open",    priority: "High",   category: "Technical", userName: "Bilal"   },
+  { subject: "Email Verification", status: "Pending", priority: "Medium", category: "General",   userName: "Zoya"    },
+  { subject: "Refund Delay",       status: "Closed",  priority: "Low",    category: "Billing",   userName: "Hamza"   },
+  { subject: "2FA Problem",        status: "Open",    priority: "High",   category: "Security",  userName: "Iqra"    },
+  { subject: "Dashboard Bug",      status: "Pending", priority: "Medium", category: "Technical", userName: "Daniyal" },
 ];
 
-const STATIC_IDS = STATIC_TICKETS.map((t) => t._id);
-
 const AdminTickets = () => {
-  const [allTickets, setAllTickets] = useState(STATIC_TICKETS);
-  const [search,     setSearch]     = useState("");
-  const [category,   setCategory]   = useState("All");
+  const [allTickets,     setAllTickets]     = useState([]);
+  const [search,         setSearch]         = useState("");
+  const [category,       setCategory]       = useState("All");
   const [selectedTicket, setSelectedTicket] = useState(null);
+  const [seeding,        setSeeding]        = useState(true);
 
-  // ── Fetch real tickets from API ──
   useEffect(() => {
+    // Try to load from DB first
     ticketAPI.getAll()
-      .then(({ tickets }) => {
+      .then(async ({ tickets }) => {
         if (tickets?.length > 0) {
-          // Shape DB tickets to match the same fields the UI expects
-          const shaped = tickets.map((t, i) => ({
+          // DB already has tickets — shape and show them
+          setAllTickets(tickets.map((t, i) => ({
             _id:      t._id,
             id:       `#${1021 + i}`,
-            user:     t.user?.name || "Unknown",
+            user:     t.user?.name || t.userName || "Unknown",
             subject:  t.subject,
             status:   t.status,
             priority: t.priority,
             category: t.category,
             date:     new Date(t.createdAt).toLocaleDateString("en-US", { day: "numeric", month: "short" }),
-          }));
-          setAllTickets(shaped);
+          })));
+        } else {
+          // DB is empty — seed the static tickets into DB
+          await seedTickets();
         }
       })
-      .catch(() => {}); // keep static on error
+      .catch(() => {
+        // API error — show static fallback shaped for UI
+        setAllTickets(STATIC_TICKETS.map((t, i) => ({
+          _id:      `static-${i}`,
+          id:       `#${1021 + i}`,
+          user:     t.userName,
+          subject:  t.subject,
+          status:   t.status,
+          priority: t.priority,
+          category: t.category,
+          date:     "—",
+        })));
+      })
+      .finally(() => setSeeding(false));
   }, []);
 
-  // ── Filter (same logic as original) ──
+  const seedTickets = async () => {
+    try {
+      // Create all static tickets in DB
+      const created = await Promise.all(
+        STATIC_TICKETS.map((t) =>
+          ticketAPI.create({
+            subject:     t.subject,
+            category:    t.category,
+            priority:    t.priority,
+            description: `Support ticket: ${t.subject}`,
+          })
+        )
+      );
+
+      // Reload from DB after seeding
+      const { tickets } = await ticketAPI.getAll();
+      if (tickets?.length > 0) {
+        setAllTickets(tickets.map((t, i) => ({
+          _id:      t._id,
+          id:       `#${1021 + i}`,
+          user:     t.user?.name || "Support",
+          subject:  t.subject,
+          status:   t.status,
+          priority: t.priority,
+          category: t.category,
+          date:     new Date(t.createdAt).toLocaleDateString("en-US", { day: "numeric", month: "short" }),
+        })));
+      }
+    } catch {
+      // Seed failed — show static fallback
+      setAllTickets(STATIC_TICKETS.map((t, i) => ({
+        _id:      `static-${i}`,
+        id:       `#${1021 + i}`,
+        user:     t.userName,
+        subject:  t.subject,
+        status:   t.status,
+        priority: t.priority,
+        category: t.category,
+        date:     "—",
+      })));
+    }
+  };
+
+  const handleStatusChange = async (ticketId, newStatus) => {
+    if (ticketId.startsWith("static-")) return;
+    try {
+      await ticketAPI.updateStatus(ticketId, newStatus);
+      setAllTickets((prev) =>
+        prev.map((t) => t._id === ticketId ? { ...t, status: newStatus } : t)
+      );
+      if (selectedTicket?._id === ticketId) {
+        setSelectedTicket((prev) => ({ ...prev, status: newStatus }));
+      }
+    } catch (err) {
+      alert("Update failed: " + err.message);
+    }
+  };
+
   const filteredTickets = allTickets.filter((ticket) => {
     const matchesSearch =
       ticket.user.toLowerCase().includes(search.toLowerCase()) ||
@@ -59,18 +129,15 @@ const AdminTickets = () => {
     return matchesSearch && matchesCategory;
   });
 
+  if (seeding) return <div style={{ color: "white", padding: "40px", opacity: 0.6 }}>Loading tickets...</div>;
+
   return (
     <div className="tickets-page">
       {/* TOPBAR */}
       <div className="tickets-topbar">
         <h2>🎫 Support Tickets</h2>
         <div className="ticket-actions">
-          <input
-            type="text"
-            placeholder="Search tickets..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+          <input type="text" placeholder="Search tickets..." value={search} onChange={(e) => setSearch(e.target.value)} />
           <select value={category} onChange={(e) => setCategory(e.target.value)}>
             <option value="All">All</option>
             <option value="Billing">Billing</option>
@@ -94,14 +161,8 @@ const AdminTickets = () => {
         <table className="ticket-table">
           <thead>
             <tr>
-              <th>ID</th>
-              <th>User</th>
-              <th>Subject</th>
-              <th>Category</th>
-              <th>Status</th>
-              <th>Priority</th>
-              <th>Date</th>
-              <th>Action</th>
+              <th>ID</th><th>User</th><th>Subject</th><th>Category</th>
+              <th>Status</th><th>Priority</th><th>Date</th><th>Action</th>
             </tr>
           </thead>
           <tbody>
@@ -112,22 +173,14 @@ const AdminTickets = () => {
                   <td>{ticket.user}</td>
                   <td>{ticket.subject}</td>
                   <td>{ticket.category}</td>
-                  <td>
-                    <span className={`status ${ticket.status.toLowerCase()}`}>
-                      {ticket.status}
-                    </span>
-                  </td>
+                  <td><span className={`status ${ticket.status.toLowerCase()}`}>{ticket.status}</span></td>
                   <td>{ticket.priority}</td>
                   <td>{ticket.date}</td>
-                  <td>
-                    <button onClick={() => setSelectedTicket(ticket)}>View</button>
-                  </td>
+                  <td><button onClick={() => setSelectedTicket(ticket)}>View</button></td>
                 </tr>
               ))
             ) : (
-              <tr>
-                <td colSpan="8" className="no-data">No Tickets Found 🔍</td>
-              </tr>
+              <tr><td colSpan="8" className="no-data">No Tickets Found 🔍</td></tr>
             )}
           </tbody>
         </table>
@@ -143,7 +196,17 @@ const AdminTickets = () => {
               <div className="popup-detail"><strong>User</strong>     <span>{selectedTicket.user}</span></div>
               <div className="popup-detail"><strong>Subject</strong>  <span>{selectedTicket.subject}</span></div>
               <div className="popup-detail"><strong>Category</strong> <span>{selectedTicket.category}</span></div>
-              <div className="popup-detail"><strong>Status</strong>   <span>{selectedTicket.status}</span></div>
+              <div className="popup-detail"><strong>Status</strong>
+                <select
+                  value={selectedTicket.status}
+                  onChange={(e) => handleStatusChange(selectedTicket._id, e.target.value)}
+                  style={{ padding: "4px 8px", borderRadius: "6px", background: "var(--secondary)", color: "white", border: "1px solid rgba(255,255,255,0.2)" }}
+                >
+                  <option>Open</option>
+                  <option>Pending</option>
+                  <option>Closed</option>
+                </select>
+              </div>
               <div className="popup-detail"><strong>Priority</strong> <span>{selectedTicket.priority}</span></div>
               <div className="popup-detail"><strong>Date</strong>     <span>{selectedTicket.date}</span></div>
             </div>

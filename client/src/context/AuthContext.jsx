@@ -24,13 +24,8 @@ export function AuthProvider({ children }) {
 
   const register = async (formData) => {
     const data = await authAPI.register(formData);
-
-    // Attendee pending approval — no session created, return pending flag
-    if (data.pending) {
-      return { pending: true };
-    }
-
-    // Exhibitor auto-approved — session created
+    // Attendee pending approval — no session created
+    if (data.pending) return { pending: true };
     setUser(data.user);
     return data.user;
   };
@@ -40,8 +35,19 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
+  // Call this after profile update — re-fetches user from DB
+  // so navbar avatar, name etc update instantly without re-login
+  const refreshUser = async () => {
+    try {
+      const data = await authAPI.getMe();
+      setUser(data.user);
+    } catch {
+      // session expired — ignore
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

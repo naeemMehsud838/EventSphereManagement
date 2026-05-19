@@ -177,14 +177,18 @@ export default function Navbar() {
                   onClick={() => setProfileOpen((o) => !o)}
                   aria-label="Profile Menu"
                 >
-                  {/* Avatar circle with initials */}
+                  {/* Avatar — shows uploaded photo or initials fallback */}
                   <span style={{
                     width: "28px", height: "28px", borderRadius: "50%",
                     background: "linear-gradient(135deg, #a78bfa, #ec4899)",
                     display: "flex", alignItems: "center", justifyContent: "center",
                     fontSize: "11px", fontWeight: 700, color: "#fff", flexShrink: 0,
+                    overflow: "hidden",
                   }}>
-                    {initials}
+                    {user?.avatar
+                      ? <img src={user.avatar} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      : initials
+                    }
                   </span>
                   <span className="nb-profile-name">{user.name.split(" ")[0]}</span>
                   <span className="nb-profile-arrow">▼</span>

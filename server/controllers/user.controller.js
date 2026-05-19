@@ -33,7 +33,7 @@ const updateProfile = async (req, res) => {
     const { name, phone, company, bio } = req.body;
     const updateData = { name, phone, company, bio };
     if (req.file) {
-      updateData.avatar = `/uploads/${req.file.filename}`;
+      updateData.avatar = `http://localhost:5000/uploads/${req.file.filename}`;
     }
     const user = await User.findByIdAndUpdate(userId, updateData, {
       new: true, runValidators: true,
